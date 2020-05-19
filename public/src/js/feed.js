@@ -20,6 +20,17 @@ function openCreatePostModal() {
 
     deferredPrompt = null;
   }
+
+  // unregister service worker
+  // if('serviceWorker' in navigator) {
+  //   navigator.serviceWorker.getRegistrations()
+  //     .then(serviceworkers => {
+  //       serviceworkers.forEach(serviceWorker => {
+  //         serviceWorker.unregister()
+  //           .then(() => console.log('[ serviceWorker unregistered successfully ]'))
+  //       })
+  //     })
+  // }
 }
 
 function closeCreatePostModal() {
@@ -31,40 +42,73 @@ shareImageButton.addEventListener('click', openCreatePostModal);
 closeCreatePostModalButton.addEventListener('click', closeCreatePostModal);
 
 function onSaveButtonClicked(event) {
+  // Cache On Demand
+  if('caches' in window) {
+    caches.open('user-requested')
+    .then(userCache => {
+      userCache.add('https://jsonplaceholder.typicode.com/posts')
+      userCache.add('/src/images/sf-boat.jpg')
+    })
+  }
   console.log('clicked');
 }
 
 function createCard() {
   var cardWrapper = document.createElement('div');
-  cardWrapper.className = 'shared-moment-card mdl-card mdl-shadow--2dp';
   var cardTitle = document.createElement('div');
+  var cardTitleTextElement = document.createElement('h2');
+  var cardSupportingText = document.createElement('div');
+  // var cardSaveButton = document.createElement('button');
+
+  cardWrapper.className = 'shared-moment-card mdl-card mdl-shadow--2dp';
   cardTitle.className = 'mdl-card__title';
+  cardTitleTextElement.className = 'mdl-card__title-text';
+  cardSupportingText.className = 'mdl-card__supporting-text';
+  
   cardTitle.style.backgroundImage = 'url("/src/images/sf-boat.jpg")';
   cardTitle.style.backgroundSize = 'cover';
   cardTitle.style.height = '180px';
-  cardWrapper.appendChild(cardTitle);
-  var cardTitleTextElement = document.createElement('h2');
   cardTitleTextElement.style.color = 'white';
-  cardTitleTextElement.className = 'mdl-card__title-text';
-  cardTitleTextElement.textContent = 'San Francisco Trip';
-  cardTitle.appendChild(cardTitleTextElement);
-  var cardSupportingText = document.createElement('div');
-  cardSupportingText.className = 'mdl-card__supporting-text';
-  cardSupportingText.textContent = 'In San Francisco';
   cardSupportingText.style.textAlign = 'center';
-  var cardSaveButton = document.createElement('button');
-  cardSaveButton.textContent = 'Save';
-  cardSaveButton.addEventListener('click', onSaveButtonClicked);
-  cardSupportingText.appendChild(cardSaveButton);
-  cardWrapper.appendChild(cardSupportingText);
+  
+  cardTitleTextElement.textContent = 'San Francisco Trip';
+  cardSupportingText.textContent = 'In San Francisco';
+  // cardSaveButton.textContent = 'Save';
+
+  // cardSaveButton.addEventListener('click', onSaveButtonClicked);
+
   componentHandler.upgradeElement(cardWrapper);
+  // cardSupportingText.appendChild(cardSaveButton);
+  cardWrapper.appendChild(cardTitle);
+  cardTitle.appendChild(cardTitleTextElement);
+  cardWrapper.appendChild(cardSupportingText);
   sharedMomentsArea.appendChild(cardWrapper);
 }
 
-fetch('https://httpbin.org/get')
-  .then(function(res) {
-    return res.json();
-  })
-  .then(function(data) {
+function clearCard() {
+  if(sharedMomentsArea.hasChildNodes()) {
+    sharedMomentsArea.removeChild(sharedMomentsArea.lastChild)
+  }
+}
+
+let urlToFetch = 'https://jsonplaceholder.typicode.com/posts';
+let networkDataReceived = false;
+
+if('caches' in window) {
+  caches.match(urlToFetch)
+    .then(response => {
+      if(response && !networkDataReceived) {
+        console.log('[Fetched Form Cache First]', response)
+        clearCard();
+        createCard();
+      }
+    })
+}
+
+axios.get(urlToFetch)
+  .then(response => {
+    console.log('[Fetched Form Network First]', response);
+    networkDataReceived = true;
+    clearCard();
     createCard();
   });
