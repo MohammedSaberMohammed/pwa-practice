@@ -53,7 +53,7 @@ function onSaveButtonClicked(event) {
   console.log('clicked');
 }
 
-function createCard() {
+function createCard(card) {
   var cardWrapper = document.createElement('div');
   var cardTitle = document.createElement('div');
   var cardTitleTextElement = document.createElement('h2');
@@ -65,14 +65,14 @@ function createCard() {
   cardTitleTextElement.className = 'mdl-card__title-text';
   cardSupportingText.className = 'mdl-card__supporting-text';
   
-  cardTitle.style.backgroundImage = 'url("/src/images/sf-boat.jpg")';
+  cardTitle.style.backgroundImage = 'url(' + card.image + ')';
   cardTitle.style.backgroundSize = 'cover';
   cardTitle.style.height = '180px';
   cardTitleTextElement.style.color = 'white';
   cardSupportingText.style.textAlign = 'center';
   
-  cardTitleTextElement.textContent = 'San Francisco Trip';
-  cardSupportingText.textContent = 'In San Francisco';
+  cardTitleTextElement.textContent = card.title;
+  cardSupportingText.textContent = card.location;
   // cardSaveButton.textContent = 'Save';
 
   // cardSaveButton.addEventListener('click', onSaveButtonClicked);
@@ -86,29 +86,58 @@ function createCard() {
 }
 
 function clearCard() {
-  if(sharedMomentsArea.hasChildNodes()) {
+  while(sharedMomentsArea.lastChild) {
     sharedMomentsArea.removeChild(sharedMomentsArea.lastChild)
   }
 }
 
-let urlToFetch = 'https://jsonplaceholder.typicode.com/posts';
+function updateUI(data = {}) {
+  console.log('Object.values', Object.values(data));
+
+  if(Array.isArray(Object.values(data))) {
+    clearCard();
+    Object.values(data).map(card => {
+      console.log('card', card);
+
+      createCard(card);
+    });
+  }
+}
+
+let url = 'https://pwa-recovery.firebaseio.com/posts.json';
 let networkDataReceived = false;
 
-if('caches' in window) {
-  caches.match(urlToFetch)
-    .then(response => {
-      if(response && !networkDataReceived) {
-        console.log('[Fetched Form Cache First]', response)
-        clearCard();
-        createCard();
+
+if('indexedDB' in window) {
+  console.log('readAllData(\'posts\')', );
+  readAllData('posts')
+    .then(data => {
+      if(data && !networkDataReceived) {
+        console.log('[Fetched Form Cache First]', data)
+        updateUI(data);
       }
     })
 }
 
-axios.get(urlToFetch)
+// if('caches' in window) {
+//   caches.match(url)
+//     .then(response => {
+//       console.log('cache res', response);
+//       return response && response.json()
+//     })
+//     .then(cards => {
+
+//       if(cards && !networkDataReceived) {
+//         console.log('[Fetched Form Cache First]', cards)
+//         updateUI(cards);
+//       }
+//     })
+// }
+
+axios.get(url)
   .then(response => {
     console.log('[Fetched Form Network First]', response);
     networkDataReceived = true;
-    clearCard();
-    createCard();
+    updateUI(response.data);
   });
+  

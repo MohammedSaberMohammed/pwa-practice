@@ -1,10 +1,13 @@
+importScripts("https://cdn.jsdelivr.net/npm/idb@4.0.5/build/iife/with-async-ittr-min.js");
+importScripts('/src/js/utility.js');
+
 /**
- * 1/ Caching Strategies
+* 1/ Caching Strategies
  * 2/ MultiSource Fallbacks [ HTML file, images ]
  * 3/ Triming Cache [ in Order no to exceed Cache Storage ]
  * 4/ Unregister Serviceworker in [ Feed.js ] file
  */
-var CACHE_STATIC_NAME = 'static-v1';
+var CACHE_STATIC_NAME = 'static-3';
 var CACHE_DYNAMIC_NAME = 'dynamic-v1';
 var STATIC_FILES = [
   '/',
@@ -14,12 +17,14 @@ var STATIC_FILES = [
   '/src/js/feed.js',
   '/src/js/promise.js',
   '/src/js/fetch.js',
+  '/src/js/utility.js',
   '/src/js/material.min.js',
   '/src/css/app.css',
   '/src/css/feed.css',
   '/src/images/main-image.jpg',
   '/src/images/offline.jpg',
   '/favicon.ico',
+  'https://cdn.jsdelivr.net/npm/idb@4.0.5/build/iife/with-async-ittr-min.js',
   'https://unpkg.com/axios/dist/axios.min.js',
   'https://fonts.googleapis.com/css?family=Roboto:400,700',
   'https://fonts.googleapis.com/icon?family=Material+Icons',
@@ -153,19 +158,32 @@ self.addEventListener('activate', function(event) {
  *    2/ [ Offline Functionality ] will not work until u use this strategy at certain urls [ check on the url ] and the other [ static_FILES ] should be fetched from static cache
  */
   self.addEventListener('fetch', event => {
-    let urlToFetch = 'https://jsonplaceholder.typicode.com/posts';
+    let urlToFetch = 'https://pwa-recovery.firebaseio.com/posts.json';
 
     if(event.request.url.indexOf(urlToFetch) > -1) {
       event.respondWith(
-        caches.open(CACHE_DYNAMIC_NAME)
-          .then(cache => {
-            return fetch(event.request)
-              .then(response => {
-                // trimCache(CACHE_DYNAMIC_NAME, 3);
-                cache.put(event.request, response.clone());
-  
-                return response;
+        fetch(event.request)
+          .then(response => {
+            const clonedRes = response.clone();
+
+            // First clear Database in order to be updated
+            clearAllData('posts')
+              .then(data => {
+                // only save jsonData in indexedDB ===> [ Cache Api Saves the whole response we can't save the desired response ]
+                clonedRes.json()
+                  .then(data => {
+                    const receivedData = Object.values(data);
+
+                    if(Array.isArray(receivedData)) {
+                      receivedData.map(post => {
+
+                        writeData('posts', post);
+                      })
+                    }
+                  })
               })
+
+            return response;
           })
       );
     } else if(isInArray(event.request.url, STATIC_FILES)) {
